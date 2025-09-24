@@ -3,6 +3,8 @@ from pydantic import BaseModel
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from datetime import datetime
+from typing import Optional
+
 
 app = FastAPI()
 
@@ -25,8 +27,7 @@ class Transaccion(BaseModel):
     fecha: str
     importe: float
     descripcion: str
-    categoria: str
-
+    categoria: Optional[str] = None
 
 @app.post("/agregar")
 def agregar_transaccion(data: Transaccion):
