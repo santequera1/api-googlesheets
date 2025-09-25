@@ -2,15 +2,12 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
-from datetime import datetime
 from typing import Optional
-
 
 app = FastAPI()
 
 # ID de la hoja
 SPREADSHEET_ID = "1SKHZBmxEsZgKjoEx_p5QtyOy21Z0o9twIsWWlICmuzE"
-SHEET_NAME = "Transacciones"
 
 # Credenciales (usa un service account en vez de OAuth normal)
 SERVICE_ACCOUNT_FILE = "credentials.json"
@@ -27,25 +24,30 @@ class Transaccion(BaseModel):
     fecha: str
     importe: float
     descripcion: str
-    categoria: Optional[str] = None
+    categoria: Optional[str] = ""
+
 
 @app.post("/agregar")
 def agregar_transaccion(data: Transaccion):
     hoja = service.spreadsheets()
 
-    if data.tipo == "entrante":
-        # Se guarda en "Ganancias" -> columnas G:J
-        rango = f"{SHEET_NAME}!G4:J"
+    # Selección de hoja según el tipo
+    if data.tipo.lower() == "entrante":
+        sheet_name = "Entradas"
+    elif data.tipo.lower() == "saliente":
+        sheet_name = "Salidas"
     else:
-        # Se guarda en "Gastos" -> columnas B:E
-        rango = f"{SHEET_NAME}!B4:E"
+        return {"status": "error", "message": "El campo 'tipo' debe ser 'entrante' o 'saliente'"}
+
+    # Rango a partir de la fila 2 (porque A1:D1 son los headers)
+    rango = f"{sheet_name}!A2:D"
 
     # Valores a insertar como fila nueva
     valores = [[
         data.fecha,
         data.importe,
         data.descripcion,
-        data.categoria
+        data.categoria or ""
     ]]
 
     hoja.values().append(
@@ -56,4 +58,4 @@ def agregar_transaccion(data: Transaccion):
         body={"values": valores}
     ).execute()
 
-    return {"status": "ok", "inserted": valores}
+    return {"status": "ok", "hoja": sheet_name, "inserted": valores}
